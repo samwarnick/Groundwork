@@ -4,6 +4,8 @@ import { Router } from "./router.ts";
 export class Application {
   private router?: Router;
 
+  private handlers: RequestHandlerFunction[] = [];
+
   async start(options: Deno.ListenOptions) {
     const server = Deno.listen(options);
     log.info(`Listening on port ${options.port}`);
@@ -17,11 +19,32 @@ export class Application {
     const httpConn = Deno.serveHttp(conn);
 
     for await (const requestEvent of httpConn) {
-      this.router?.handle(requestEvent);
+      let response: Response | undefined = undefined;
+      try {
+        for await (const handler of this.handlers) {
+          response = await handler(requestEvent.request);
+          if (response) {
+            requestEvent.respondWith(response);
+            break;
+          }
+        }
+      } catch {
+        requestEvent.respondWith(new Response(null, { status: 500 }));
+      }
+      if (!response) {
+        requestEvent.respondWith(new Response(null, { status: 501 }));
+      }
     }
   }
 
-  withRouter(router: Router) {
-    this.router = router;
+  use(handler: RequestHandler | RequestHandlerFunction) {
+    this.handlers.push("handle" in handler ? handler.handle : handler);
   }
+}
+
+type RequestHandlerFunction = (
+  request: Request
+) => Response | Promise<Response> | undefined;
+export interface RequestHandler {
+  handle: RequestHandlerFunction;
 }

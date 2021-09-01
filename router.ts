@@ -1,5 +1,6 @@
 import * as log from "https://deno.land/std@0.106.0/log/mod.ts";
 import * as path from "https://deno.land/std@0.106.0/path/mod.ts";
+import { RequestHandler } from "./application.ts";
 
 log.setup({
   handlers: {
@@ -27,7 +28,7 @@ interface Route {
   param?: string;
 }
 
-export class Router {
+export class Router implements RequestHandler {
   private _routes: { [method in HTTPRequestMethod]?: Route } = {};
 
   get(route: string, handler: Handler) {
@@ -77,17 +78,17 @@ export class Router {
     return route.replace("http://localhost:4287", "");
   }
 
-  handle(requestEvent: Deno.RequestEvent) {
-    const route = this._normalizeRoute(requestEvent.request.url);
-    const method = requestEvent.request.method as HTTPRequestMethod;
+  handle(request: Request) {
+    const route = this._normalizeRoute(request.url);
+    const method = request.method as HTTPRequestMethod;
     log.info(`${method} ${route}`);
-    let response = this._getResponse(route, method, requestEvent.request);
+    let response = this._getResponse(route, method, request);
     if (!response && method == "GET") {
       // Attempt to find an asset.
       response = this._getAssetResponse(route);
     }
 
-    requestEvent.respondWith(response ?? new Response("", { status: 404 }));
+    return response ?? new Response("", { status: 404 });
   }
 
   private _getResponse(
