@@ -75,6 +75,7 @@ export class Router implements RequestHandler {
   }
 
   private _normalizeRoute(route: string): string {
+    // TODO: Make this configurable.
     return route.replace("http://localhost:4287", "");
   }
 

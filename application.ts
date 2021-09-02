@@ -28,7 +28,8 @@ export class Application {
             break;
           }
         }
-      } catch {
+      } catch (error) {
+        log.error(error);
         requestEvent.respondWith(new Response(null, { status: 500 }));
       }
       if (!response) {
@@ -38,7 +39,9 @@ export class Application {
   }
 
   use(handler: RequestHandler | RequestHandlerFunction) {
-    this.handlers.push("handle" in handler ? handler.handle : handler);
+    this.handlers.push(
+      "handle" in handler ? handler.handle.bind(handler) : handler
+    );
   }
 }
 
