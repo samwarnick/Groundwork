@@ -84,8 +84,7 @@ export class Router implements RequestHandler {
     let curr = root;
     const params: { [name: string]: string } = {};
     if (curr) {
-      const parts = route.split("/");
-      parts.shift();
+      const parts = route.split("/").filter((part) => !!part);
       for (const part of parts) {
         curr =
           curr?.children.find((r) => r.path === part) ??
@@ -104,7 +103,7 @@ export class Router implements RequestHandler {
 
 export function normalizeRoute(route: string): string {
   route = route.replace(/http(s?):\/\/[^\/]*(?=\/)/, "");
-  if (route[route.length - 1] === "/") {
+  if (route.length > 1 && route[route.length - 1] === "/") {
     route = route.substr(0, route.length - 1);
   }
   return route;
