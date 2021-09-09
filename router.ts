@@ -1,19 +1,4 @@
-import * as log from "https://deno.land/std@0.106.0/log/mod.ts";
-import * as path from "https://deno.land/std@0.106.0/path/mod.ts";
 import { RequestHandler } from "./application.ts";
-
-log.setup({
-  handlers: {
-    console: new log.handlers.ConsoleHandler("DEBUG", {
-      formatter: "{levelName} {datetime} {msg}",
-    }),
-  },
-  loggers: {
-    default: {
-      handlers: ["console"],
-    },
-  },
-});
 
 type HTTPRequestMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
 
@@ -29,6 +14,11 @@ interface Route {
 }
 
 export class Router implements RequestHandler {
+  constructor(base?: string) {
+    this._base = base || "/";
+  }
+
+  private _base: string;
   private _routes: { [method in HTTPRequestMethod]?: Route } = {};
 
   get(route: string, handler: Handler) {
@@ -48,13 +38,12 @@ export class Router implements RequestHandler {
   }
   on(method: HTTPRequestMethod, route: string, handler: Handler) {
     // TODO: Validate route
-    const normalizedRoute = this._normalizeRoute(route);
+    const routeWithBase = normalizeRoute(`${this._base}${route}`);
 
-    const parts = normalizedRoute.split("/");
+    const parts = routeWithBase.split("/").filter((part) => !!part);
     const root = this._routes[method] ?? { path: "", children: [] };
     let curr = root;
-    parts.shift();
-    parts.forEach((part, i) => {
+    parts.forEach((part) => {
       let next = curr.children.find((route) => route.path === part);
       if (!next) {
         next = {
@@ -66,30 +55,17 @@ export class Router implements RequestHandler {
       if (part.startsWith(":")) {
         next.param = part.replace(":", "");
       }
-      if (i + 1 === parts.length) {
-        next.handler = handler;
-      }
       curr = next;
     });
+    curr.handler = handler;
     this._routes[method] = root;
   }
 
-  private _normalizeRoute(route: string): string {
-    // TODO: Make this configurable.
-    return route.replace("http://localhost:4287", "");
-  }
-
   handle(request: Request) {
-    const route = this._normalizeRoute(request.url);
+    const route = normalizeRoute(request.url);
     const method = request.method as HTTPRequestMethod;
-    log.info(`${method} ${route}`);
-    let response = this._getResponse(route, method, request);
-    if (!response && method == "GET") {
-      // Attempt to find an asset.
-      response = this._getAssetResponse(route);
-    }
 
-    return response ?? new Response("", { status: 404 });
+    return this._getResponse(route, method, request);
   }
 
   private _getResponse(
@@ -124,14 +100,12 @@ export class Router implements RequestHandler {
       params,
     };
   }
+}
 
-  private async _getAssetResponse(route: string): Promise<Response> {
-    const filename = path.join(Deno.cwd(), `public/${route}`);
-    try {
-      const data = await Deno.readFile(filename);
-      return new Response(data, { status: 200 });
-    } catch {
-      return new Response(null, { status: 404 });
-    }
+export function normalizeRoute(route: string): string {
+  route = route.replace(/http(s?):\/\/[^\/]*(?=\/)/, "");
+  if (route[route.length - 1] === "/") {
+    route = route.substr(0, route.length - 1);
   }
+  return route;
 }

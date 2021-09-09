@@ -22,7 +22,7 @@ export class Application {
       let response: Response | undefined = undefined;
       try {
         for await (const handler of this.handlers) {
-          response = await handler(requestEvent.request);
+          response = (await handler(requestEvent.request)) ?? undefined;
           if (response) {
             requestEvent.respondWith(response);
             break;
@@ -47,7 +47,7 @@ export class Application {
 
 type RequestHandlerFunction = (
   request: Request
-) => Response | Promise<Response> | undefined;
+) => void | undefined | Response | Promise<Response | undefined>;
 export interface RequestHandler {
   handle: RequestHandlerFunction;
 }
