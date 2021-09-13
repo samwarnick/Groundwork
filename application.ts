@@ -18,25 +18,22 @@ export class Application {
   private async serveHttp(conn: Deno.Conn) {
     const httpConn = Deno.serveHttp(conn);
 
-    while (true) {
-      const requestEvent = await httpConn.nextRequest();
-      if (requestEvent) {
-        let response: Response | undefined = undefined;
-        try {
-          for await (const handler of this.handlers) {
-            response = (await handler(requestEvent.request)) ?? undefined;
-            if (response) {
-              requestEvent.respondWith(response);
-              break;
-            }
+    for await (const requestEvent of httpConn) {
+      let response: Response | undefined = undefined;
+      try {
+        for await (const handler of this.handlers) {
+          response = (await handler(requestEvent.request)) ?? undefined;
+          if (response) {
+            requestEvent.respondWith(response);
+            break;
           }
-        } catch (error) {
-          log.error(error);
-          requestEvent.respondWith(new Response(null, { status: 500 }));
         }
-        if (!response) {
-          requestEvent.respondWith(new Response(null, { status: 501 }));
-        }
+      } catch (error) {
+        log.error(error);
+        requestEvent.respondWith(new Response(null, { status: 500 }));
+      }
+      if (!response) {
+        requestEvent.respondWith(new Response(null, { status: 501 }));
       }
     }
   }
