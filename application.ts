@@ -8,6 +8,7 @@ export class Application {
 
   async start(options: Deno.ListenOptions) {
     const server = Deno.listen(options);
+    log.info("2021.10.20");
     log.info(`Listening on port ${options.port}`);
 
     for await (const conn of server) {
